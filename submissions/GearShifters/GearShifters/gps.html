@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>GPS Sender</title>
+  <style>
+    body { font-family: Arial; background: #2c3e50; color: white; padding: 20px; text-align: center; }
+    button { padding: 20px 40px; font-size: 20px; background: #3498db; color: white; border: none; border-radius: 10px; cursor: pointer; margin: 10px; }
+    #status { margin: 20px; padding: 20px; background: rgba(255,255,255,0.1); border-radius: 10px; font-size: 18px; }
+    .data { margin: 10px 0; font-size: 16px; }
+  </style>
+</head>
+<body>
+  <h1>📡 GPS TO ESP32</h1>
+  <button onclick="startGPS()">Start</button>
+  <button onclick="stopGPS()">Stop</button>
+  <div id="status">Ready</div>
+  <div class="data">Lat: <span id="lat">--</span></div>
+  <div class="data">Lon: <span id="lon">--</span></div>
+  <div class="data">Speed: <span id="speed">--</span> km/h</div>
+  <div class="data">Sent: <span id="count">0</span></div>
+
+  <script>
+    let sending = false;
+    let count = 0;
+    
+    function startGPS() {
+      sending = true;
+      document.getElementById('status').textContent = '✅ GPS Active - Sending to ESP32';
+      
+      navigator.geolocation.watchPosition(pos => {
+        let lat = pos.coords.latitude;
+        let lon = pos.coords.longitude;
+        let speed = (pos.coords.speed || 0) * 3.6;
+        
+        document.getElementById('lat').textContent = lat.toFixed(6);
+        document.getElementById('lon').textContent = lon.toFixed(6);
+        document.getElementById('speed').textContent = speed.toFixed(1);
+        
+        if(sending) {
+          fetch('http://192.168.4.1/gps?lat='+lat+'&lon='+lon+'&speed='+speed)
+            .then(() => {
+              count++;
+              document.getElementById('count').textContent = count;
+            })
+            .catch(e => console.log(e));
+        }
+      }, err => alert('GPS: '+err.message), {enableHighAccuracy: true});
+    }
+    
+    function stopGPS() {
+      sending = false;
+      document.getElementById('status').textContent = 'Stopped';
+    }
+  </script>
+</body>
+</html>
