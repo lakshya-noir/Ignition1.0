@@ -1,0 +1,19 @@
+{
+  "name": "esp32-mpu6050-gui",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "recharts": "^2.5.0",
+    "framer-motion": "^10.12.16"
+  },
+  "devDependencies": {
+    "vite": "^5.0.0"
+  }
+}
