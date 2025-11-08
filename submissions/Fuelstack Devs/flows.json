@@ -1,0 +1,353 @@
+[
+    {
+        "id": "9370cc7aa46f7144",
+        "type": "tab",
+        "label": "Flow 1",
+        "disabled": false,
+        "info": "",
+        "env": []
+    },
+    {
+        "id": "ca1b951cd98fc8b9",
+        "type": "udp in",
+        "z": "9370cc7aa46f7144",
+        "name": "",
+        "iface": "",
+        "port": "8000",
+        "ipv": "udp4",
+        "multicast": "false",
+        "group": "",
+        "datatype": "utf8",
+        "x": 320,
+        "y": 280,
+        "wires": [
+            [
+                "9464620471b13345"
+            ]
+        ]
+    },
+    {
+        "id": "9464620471b13345",
+        "type": "json",
+        "z": "9370cc7aa46f7144",
+        "name": "",
+        "property": "payload",
+        "action": "",
+        "pretty": false,
+        "x": 510,
+        "y": 280,
+        "wires": [
+            [
+                "308d11ba0279360b",
+                "4d932befc0a161bc"
+            ]
+        ]
+    },
+    {
+        "id": "308d11ba0279360b",
+        "type": "switch",
+        "z": "9370cc7aa46f7144",
+        "name": "",
+        "property": "payload.type",
+        "propertyType": "msg",
+        "rules": [
+            {
+                "t": "eq",
+                "v": "android.sensor.accelerometer",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "android.gps",
+                "vt": "str"
+            },
+            {
+                "t": "eq",
+                "v": "android.sensor.step_counter",
+                "vt": "str"
+            }
+        ],
+        "checkall": "true",
+        "repair": false,
+        "outputs": 3,
+        "x": 790,
+        "y": 280,
+        "wires": [
+            [
+                "2dd1b0358368901f"
+            ],
+            [
+                "9de54baabb95e822"
+            ],
+            [
+                "a53a9aded9759779"
+            ]
+        ]
+    },
+    {
+        "id": "9de54baabb95e822",
+        "type": "function",
+        "z": "9370cc7aa46f7144",
+        "name": "function 1",
+        "func": "// Check if the message is the GPS data we want AND has the coordinates.\nif (msg.payload.type === 'android.gps' && msg.payload.latitude && msg.payload.longitude) {\n\n    var lat = msg.payload.latitude;\n    var lon = msg.payload.longitude;\n\n    // Safety check (your debug data looks real, so this should pass)\n    if (lat !== 0 && lon !== 0) {\n\n        // Format the message the worldmap node expects\n        msg.payload = {\n            name: \"Rider 1\",\n            lat: lat,\n            lon: lon,\n            icon: \"bicycle\"\n        };\n\n        // Send the message\n        return msg;\n    }\n}\n\n// If not GPS or coordinates are zero, stop the message.\nreturn null;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "// Code added here will be run once\n// whenever the node is started.\ncontext.set('session_count', 0);",
+        "finalize": "// Code added here will be run when the\n// node is being stopped or re-deployed.\nnode.warn(\"Flow is stopping. Last GPS data saved.\")",
+        "libs": [],
+        "x": 1100,
+        "y": 280,
+        "wires": [
+            [
+                "65e462b6340f1a9f"
+            ]
+        ]
+    },
+    {
+        "id": "65e462b6340f1a9f",
+        "type": "ui_worldmap",
+        "z": "9370cc7aa46f7144",
+        "group": "01fc28bbd77df62d",
+        "order": 2,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "lat": "",
+        "lon": "",
+        "zoom": "",
+        "layer": "OSMG",
+        "cluster": "",
+        "maxage": "",
+        "usermenu": "hide",
+        "layers": "hide",
+        "panit": "false",
+        "panlock": "false",
+        "zoomlock": "false",
+        "hiderightclick": "true",
+        "coords": "none",
+        "showgrid": "false",
+        "showruler": "false",
+        "allowFileDrop": "false",
+        "path": "/worldmap",
+        "overlist": "DR,CO,RA,DN,HM",
+        "maplist": "OSMG,OSMC,EsriC,EsriS,EsriT,EsriDG,UKOS",
+        "mapname": "",
+        "mapurl": "",
+        "mapopt": "",
+        "mapwms": false,
+        "x": 1340,
+        "y": 280,
+        "wires": []
+    },
+    {
+        "id": "4d932befc0a161bc",
+        "type": "debug",
+        "z": "9370cc7aa46f7144",
+        "name": "debug 1",
+        "active": true,
+        "tosidebar": true,
+        "console": false,
+        "tostatus": true,
+        "complete": "payload",
+        "targetType": "msg",
+        "statusVal": "payload",
+        "statusType": "auto",
+        "x": 740,
+        "y": 440,
+        "wires": []
+    },
+    {
+        "id": "a53a9aded9759779",
+        "type": "function",
+        "z": "9370cc7aa46f7144",
+        "name": "function 2",
+        "func": "// Read the current total step count (always the first value in the array)\nvar currentSteps = msg.payload.values[0];\n\n// Get the previous step count stored in context\nvar lastSteps = context.get('lastSteps') || currentSteps;\n\n// Calculate the difference (new steps taken)\nvar newSteps = currentSteps - lastSteps;\n\n// Store the current count for the next calculation\ncontext.set('lastSteps', currentSteps);\n\n// We want the gauge to show the CUMULATIVE steps for this session, \n// so we get the current total for the session and add the new steps.\nvar sessionTotal = context.get('sessionTotal') || 0;\nsessionTotal += newSteps;\ncontext.set('sessionTotal', sessionTotal);\n\n// Send the session total to the gauge\nmsg.payload = sessionTotal;\n\n// Send a message to the debug log to confirm the value\nnode.warn(\"Total Session Steps: \" + sessionTotal); \n\nreturn msg;",
+        "outputs": 1,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "context.set('sessionTotal', 0);",
+        "finalize": "",
+        "libs": [],
+        "x": 1100,
+        "y": 440,
+        "wires": [
+            [
+                "74cec820e34f2c6b",
+                "39be095496411e9f"
+            ]
+        ]
+    },
+    {
+        "id": "c957dbf72b0a106c",
+        "type": "function",
+        "z": "9370cc7aa46f7144",
+        "name": "Format Acceleration for Chart",
+        "func": "// This function sends X, Y, and Z as three separate messages.\n\nif (Array.isArray(msg.payload.values) && msg.payload.values.length >= 3) {\n\n    let x = msg.payload.values[0];\n    let y = msg.payload.values[1];\n    let z = msg.payload.values[2];\n\n    // Define three separate messages\n    let msgX = { payload: x, topic: 'X-Axis' };\n    let msgY = { payload: y, topic: 'Y-Axis' };\n    let msgZ = { payload: z, topic: 'Z-Axis' };\n\n    // Return them as an array to send all three simultaneously\n    return [msgX, msgY, msgZ];\n}\nreturn null;",
+        "outputs": 3,
+        "timeout": 0,
+        "noerr": 0,
+        "initialize": "",
+        "finalize": "",
+        "libs": [],
+        "x": 1060,
+        "y": 100,
+        "wires": [
+            [
+                "d9de4acddf7727b8"
+            ],
+            [
+                "d9de4acddf7727b8"
+            ],
+            [
+                "d9de4acddf7727b8"
+            ]
+        ]
+    },
+    {
+        "id": "74cec820e34f2c6b",
+        "type": "ui_gauge",
+        "z": "9370cc7aa46f7144",
+        "name": "",
+        "group": "01fc28bbd77df62d",
+        "order": 1,
+        "width": 0,
+        "height": 0,
+        "gtype": "donut",
+        "title": "Step Counter",
+        "label": "steps",
+        "format": "",
+        "min": 0,
+        "max": "1000",
+        "colors": [
+            "#00b500",
+            "#e6e600",
+            "#ca3838"
+        ],
+        "seg1": "",
+        "seg2": "",
+        "diff": false,
+        "className": "",
+        "x": 1350,
+        "y": 480,
+        "wires": []
+    },
+    {
+        "id": "d9de4acddf7727b8",
+        "type": "ui_chart",
+        "z": "9370cc7aa46f7144",
+        "name": "",
+        "group": "01fc28bbd77df62d",
+        "order": 2,
+        "width": "0",
+        "height": "0",
+        "label": "Acceleration (X, Y, Z)",
+        "chartType": "line",
+        "legend": "false",
+        "xformat": "HH:mm:ss",
+        "interpolate": "linear",
+        "nodata": "",
+        "dot": false,
+        "ymin": "-15",
+        "ymax": "15",
+        "removeOlder": 1,
+        "removeOlderPoints": "",
+        "removeOlderUnit": "3600",
+        "cutout": 0,
+        "useOneColor": false,
+        "useUTC": false,
+        "colors": [
+            "#0b93f4",
+            "#aec7e8",
+            "#ff7f0e",
+            "#2ca02c",
+            "#98df8a",
+            "#f80d0d",
+            "#ff9896",
+            "#9467bd",
+            "#c5b0d5"
+        ],
+        "outputs": 1,
+        "useDifferentColor": false,
+        "className": "",
+        "x": 1400,
+        "y": 100,
+        "wires": [
+            []
+        ]
+    },
+    {
+        "id": "39be095496411e9f",
+        "type": "ui_text",
+        "z": "9370cc7aa46f7144",
+        "group": "01fc28bbd77df62d",
+        "order": 3,
+        "width": 0,
+        "height": 0,
+        "name": "",
+        "label": "No of steps: ",
+        "format": "{{value}} steps",
+        "layout": "row-left",
+        "className": "",
+        "style": false,
+        "font": "",
+        "fontSize": 16,
+        "color": "#000000",
+        "x": 1350,
+        "y": 400,
+        "wires": []
+    },
+    {
+        "id": "2dd1b0358368901f",
+        "type": "delay",
+        "z": "9370cc7aa46f7144",
+        "name": "",
+        "pauseType": "queue",
+        "timeout": "5",
+        "timeoutUnits": "milliseconds",
+        "rate": "1",
+        "nbRateUnits": "1",
+        "rateUnits": "second",
+        "randomFirst": "1",
+        "randomLast": "5",
+        "randomUnits": "seconds",
+        "drop": true,
+        "allowrate": true,
+        "outputs": 1,
+        "x": 930,
+        "y": 180,
+        "wires": [
+            [
+                "c957dbf72b0a106c"
+            ]
+        ]
+    },
+    {
+        "id": "01fc28bbd77df62d",
+        "type": "ui_group",
+        "name": "Sensors",
+        "tab": "1eb89c64f03dbde7",
+        "order": 1,
+        "disp": true,
+        "width": 6,
+        "collapse": false,
+        "className": ""
+    },
+    {
+        "id": "1eb89c64f03dbde7",
+        "type": "ui_tab",
+        "name": "Rider Demo",
+        "icon": "dashboard",
+        "disabled": false,
+        "hidden": false
+    },
+    {
+        "id": "e2977312378c62df",
+        "type": "global-config",
+        "env": [],
+        "modules": {
+            "node-red-contrib-web-worldmap": "5.5.3",
+            "node-red-dashboard": "3.6.6"
+        }
+    }
+]
