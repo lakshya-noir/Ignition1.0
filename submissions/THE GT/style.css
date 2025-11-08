@@ -1,0 +1,95 @@
+body {
+  background: linear-gradient(135deg, #0f2027, #203a43, #2c5364);
+  font-family: "Poppins", sans-serif;
+  color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  height: 100vh;
+  margin: 0;
+  padding-top: 20px;
+}
+
+.container {
+  width: 90%;
+  max-width: 900px;
+  text-align: center;
+}
+
+.card-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 15px;
+  margin: 20px 0;
+}
+
+.card {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+}
+
+.card.highlight {
+  background: rgba(0, 198, 255, 0.15);
+  border: 2px solid #00c6ff;
+}
+
+.gauge-container {
+  width: 120px;
+  height: 120px;
+  margin: 0 auto;
+}
+
+.gauge {
+  transform: rotate(-90deg);
+  width: 100%;
+  height: 100%;
+}
+
+.gauge .bg {
+  fill: none;
+  stroke: rgba(255,255,255,0.1);
+  stroke-width: 3;
+}
+
+.gauge .bar {
+  fill: none;
+  stroke-width: 3;
+  stroke-linecap: round;
+  stroke: #00c6ff;
+  transition: stroke-dasharray 0.5s ease, stroke 0.5s ease;
+}
+
+.gauge-text {
+  fill: #fff;
+  font-size: 0.6em;
+  text-anchor: middle;
+}
+
+#map {
+  height: 300px;
+  border-radius: 10px;
+  margin-top: 20px;
+}
+
+.btn-row {
+  margin-top: 20px;
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+button {
+  background: #00c6ff;
+  border: none;
+  color: white;
+  padding: 10px 25px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-size: 1rem;
+}
+
+button:hover {
+  background: #007acc;
+}
