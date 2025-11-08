@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rider Monitoring Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+<style>
+body { background: #071a2a; color: #e6f7ff; font-family: sans-serif; margin:0; padding:0; }
+button { padding:10px 16px; margin:8px; border:none; border-radius:6px; background:#06b6d4; color:#000; font-weight:bold; cursor:pointer; }
+.card { background: rgba(255,255,255,0.05); padding:16px; margin:8px; border-radius:8px; }
+#charts { display:flex; gap:12px; flex-wrap:wrap; }
+h1 { text-align:center; margin-top:12px; }
+#map { height:400px; border-radius:8px; margin:8px; }
+</style>
+</head>
+<body>
+
+<h1>Rider Monitoring Dashboard</h1>
+
+<div style="text-align:center;">
+  <button onclick="connectWS()">Connect to ESP32</button>
+  <button onclick="downloadCSV()">Download CSV</button>
+</div>
+
+<div class="card">
+  <h3>Tilt Angle: <span id="tilt">--</span>°</h3>
+  <h3>Total Accel: <span id="accel">--</span> g</h3>
+  <h3>Braking: <span id="brake">--</span> m/s²</h3>
+  <h3>Y-Change: <span id="ychange">--</span></h3>
+  <h3>Distance Travelled: <span id="distance">--</span> m</h3>
+  <h3>Activity: <span id="activity">--</span></h3>
+  <h3>GPS: <span id="gps">Lat: -- , Lon: -- , Speed: -- m/s</span></h3>
+</div>
+
+<div class="card">
+  <h3>Probability %:</h3>
+  <p>Walking: <span id="pWalking">--</span>%</p>
+  <p>Running: <span id="pRunning">--</span>%</p>
+  <p>Riding Vehicle: <span id="pVehicle">--</span>%</p>
+</div>
+
+<div id="map"></div>
+
+<div id="charts" class="card">
+  <canvas id="probChart" height="200"></canvas>
+</div>
+
+<script>
+let ws;
+let recordedData = [];
+let probHistoryWalking = Array(40).fill(0);
+let probHistoryRunning = Array(40).fill(0);
+let probHistoryVehicle = Array(40).fill(0);
+
+// Initialize Leaflet map
+let map = L.map('map').setView([0,0],2);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {maxZoom:19}).addTo(map);
+let marker = L.marker([0,0]).addTo(map);
+let polyline = L.polyline([], {color:'#06b6d4'}).addTo(map);
+
+// Connect to WebSocket
+function connectWS(){
+  if(ws && ws.readyState === 1) ws.close();
+  ws = new WebSocket("ws://192.168.4.1:81");
+
+  ws.onopen = ()=>{console.log("Connected to ESP32"); alert("WebSocket Connected!");};
+  ws.onerror = (err)=>{console.error("WebSocket error:",err); alert("Cannot connect to ESP32!");};
+  ws.onclose = ()=>{console.log("WebSocket closed");};
+
+  ws.onmessage = (evt)=>{
+    const d = JSON.parse(evt.data);
+
+    // Update stats
+    document.getElementById("tilt").innerText = d.tilt.toFixed(2);
+    document.getElementById("accel").innerText = d.accel.toFixed(2);
+    document.getElementById("brake").innerText = d.brake.toFixed(2);
+    document.getElementById("ychange").innerText = d.ychange.toFixed(2);
+    document.getElementById("distance").innerText = d.distance.toFixed(2);
+    document.getElementById("gps").innerText = Lat: ${d.lat.toFixed(6)}, Lon: ${d.lon.toFixed(6)}, Speed: ${d.gpsSpeed.toFixed(2)};
+
+    // Update probabilities
+    document.getElementById("pWalking").innerText = d.probWalking.toFixed(1);
+    document.getElementById("pRunning").innerText = d.probRunning.toFixed(1);
+    document.getElementById("pVehicle").innerText = d.probVehicle.toFixed(1);
+
+    // Determine activity based on max probability
+    let act="--";
+    if(d.probVehicle>=d.probRunning && d.probVehicle>=d.probWalking) act="Riding Vehicle";
+    else if(d.probRunning>=d.probWalking) act="Running";
+    else act="Walking";
+    document.getElementById("activity").innerText = act;
+
+    // Update chart history
+    probHistoryWalking.push(d.probWalking);
+    probHistoryRunning.push(d.probRunning);
+    probHistoryVehicle.push(d.probVehicle);
+
+    if(probHistoryWalking.length>40){ probHistoryWalking.shift(); probHistoryRunning.shift(); probHistoryVehicle.shift(); }
+
+    probChart.data.datasets[0].data = probHistoryWalking;
+    probChart.data.datasets[1].data = probHistoryRunning;
+    probChart.data.datasets[2].data = probHistoryVehicle;
+    probChart.update();
+
+    // Update map
+    if(d.lat && d.lon){
+      marker.setLatLng([d.lat,d.lon]);
+      polyline.addLatLng([d.lat,d.lon]);
+      map.setView([d.lat,d.lon],16);
+    }
+
+    // Record data with timestamp
+    d.timestamp = new Date().toISOString();
+    recordedData.push(d);
+  }
+}
+
+// Chart.js setup
+const ctx = document.getElementById("probChart").getContext("2d");
+const probChart = new Chart(ctx,{
+  type:'line',
+  data:{
+    labels:Array(40).fill(''),
+    datasets:[
+      {label:'Walking %', data:probHistoryWalking, borderColor:'#00ff00', fill:false},
+      {label:'Running %', data:probHistoryRunning, borderColor:'#ffff00', fill:false},
+      {label:'Vehicle %', data:probHistoryVehicle, borderColor:'#ff0000', fill:false}
+    ]
+  },
+  options:{
+    scales:{y:{min:0,max:100}},
+    plugins:{legend:{display:true}}
+  }
+});
+
+// CSV download with timestamp
+function downloadCSV(){
+  if(recordedData.length===0){alert("No data recorded yet!"); return;}
+  const keys = Object.keys(recordedData[0]);
+  let csv = keys.join(',')+'\n';
+  recordedData.forEach(r=>{
+    csv += keys.map(k=>r[k]).join(',')+'\n';
+  });
+  const blob = new Blob([csv],{type:'text/csv'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href=url; 
+  a.download='rider_data_'+new Date().toISOString()+'.csv';
+  a.click();
+  URL.revokeObjectURL(url);
+}
+</script>
+
+</body>
+</html>
